@@ -13,8 +13,8 @@ external_components:
   - source: github://fahmula/esphome-pylontech-rs485@main
 
 wifi:
-  ssid: omg
-  password: "97477181"
+  ssid: "Secret wifi_ssid"
+  password: "Secret wifi_password"
 
 api:
   encryption:
