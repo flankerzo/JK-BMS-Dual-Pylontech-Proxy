@@ -1,0 +1,389 @@
+#pragma once
+
+#include "esphome/core/component.h"
+#include "esphome/components/binary_sensor/binary_sensor.h"
+#include "esphome/components/sensor/sensor.h"
+#include "esphome/components/text_sensor/text_sensor.h"
+#include "esphome/components/switch/switch.h"
+#include "esphome/components/jk_modbus/jk_modbus.h"
+
+namespace esphome::jk_bms {
+
+struct LookupTable {
+  const char *const *entries{nullptr};
+  size_t count{0};
+  const char *get(uint8_t index) const { return (entries != nullptr && index < count) ? entries[index] : nullptr; }
+};
+
+class JkBms : public PollingComponent, public jk_modbus::JkModbusDevice {
+ public:
+  void set_errors_table(const char *const *entries, size_t count) { errors_table_ = {entries, count}; }
+
+  void set_balancing_binary_sensor(binary_sensor::BinarySensor *balancing_binary_sensor) {
+    balancing_binary_sensor_ = balancing_binary_sensor;
+  }
+  void set_balancing_switch_binary_sensor(binary_sensor::BinarySensor *balancing_switch_binary_sensor) {
+    balancing_switch_binary_sensor_ = balancing_switch_binary_sensor;
+  }
+  void set_charging_binary_sensor(binary_sensor::BinarySensor *charging_binary_sensor) {
+    charging_binary_sensor_ = charging_binary_sensor;
+  }
+  void set_discharging_binary_sensor(binary_sensor::BinarySensor *discharging_binary_sensor) {
+    discharging_binary_sensor_ = discharging_binary_sensor;
+  }
+  void set_dedicated_charger_switch_binary_sensor(binary_sensor::BinarySensor *dedicated_charger_switch_binary_sensor) {
+    dedicated_charger_switch_binary_sensor_ = dedicated_charger_switch_binary_sensor;
+  }
+  void set_online_status_binary_sensor(binary_sensor::BinarySensor *online_status_binary_sensor) {
+    online_status_binary_sensor_ = online_status_binary_sensor;
+  }
+
+  void set_min_cell_voltage_sensor(sensor::Sensor *min_cell_voltage_sensor) {
+    min_cell_voltage_sensor_ = min_cell_voltage_sensor;
+  }
+  void set_max_cell_voltage_sensor(sensor::Sensor *max_cell_voltage_sensor) {
+    max_cell_voltage_sensor_ = max_cell_voltage_sensor;
+  }
+  void set_min_voltage_cell_sensor(sensor::Sensor *min_voltage_cell_sensor) {
+    min_voltage_cell_sensor_ = min_voltage_cell_sensor;
+  }
+  void set_max_voltage_cell_sensor(sensor::Sensor *max_voltage_cell_sensor) {
+    max_voltage_cell_sensor_ = max_voltage_cell_sensor;
+  }
+  void set_delta_cell_voltage_sensor(sensor::Sensor *delta_cell_voltage_sensor) {
+    delta_cell_voltage_sensor_ = delta_cell_voltage_sensor;
+  }
+  void set_average_cell_voltage_sensor(sensor::Sensor *average_cell_voltage_sensor) {
+    average_cell_voltage_sensor_ = average_cell_voltage_sensor;
+  }
+  void set_cell_voltage_sensor(uint8_t cell, sensor::Sensor *cell_voltage_sensor) {
+    this->cells_[cell].cell_voltage_sensor_ = cell_voltage_sensor;
+  }
+  void set_mosfet_temperature_sensor(sensor::Sensor *mosfet_temperature_sensor) {
+    mosfet_temperature_sensor_ = mosfet_temperature_sensor;
+  }
+  void set_temperature_sensor_1_sensor(sensor::Sensor *temperature_sensor_1_sensor) {
+    temperature_sensor_1_sensor_ = temperature_sensor_1_sensor;
+  }
+  void set_temperature_sensor_2_sensor(sensor::Sensor *temperature_sensor_2_sensor) {
+    temperature_sensor_2_sensor_ = temperature_sensor_2_sensor;
+  }
+  void set_total_voltage_sensor(sensor::Sensor *total_voltage_sensor) { total_voltage_sensor_ = total_voltage_sensor; }
+  void set_current_sensor(sensor::Sensor *current_sensor) { current_sensor_ = current_sensor; }
+  void set_power_sensor(sensor::Sensor *power_sensor) { power_sensor_ = power_sensor; }
+  void set_charging_power_sensor(sensor::Sensor *charging_power_sensor) {
+    charging_power_sensor_ = charging_power_sensor;
+  }
+  void set_discharging_power_sensor(sensor::Sensor *discharging_power_sensor) {
+    discharging_power_sensor_ = discharging_power_sensor;
+  }
+  void set_state_of_charge_sensor(sensor::Sensor *state_of_charge_sensor) {
+    state_of_charge_sensor_ = state_of_charge_sensor;
+  }
+  void set_capacity_remaining_sensor(sensor::Sensor *capacity_remaining_sensor) {
+    capacity_remaining_sensor_ = capacity_remaining_sensor;
+  }
+  void set_temperature_sensor_count_sensor(sensor::Sensor *temperature_sensor_count_sensor) {
+    temperature_sensor_count_sensor_ = temperature_sensor_count_sensor;
+  }
+  void set_charging_cycles_sensor(sensor::Sensor *charging_cycles_sensor) {
+    charging_cycles_sensor_ = charging_cycles_sensor;
+  }
+  void set_total_charging_cycle_capacity_sensor(sensor::Sensor *total_charging_cycle_capacity_sensor) {
+    total_charging_cycle_capacity_sensor_ = total_charging_cycle_capacity_sensor;
+  }
+  void set_cell_count_sensor(sensor::Sensor *cell_count_sensor) { cell_count_sensor_ = cell_count_sensor; }
+  void set_errors_bitmask_sensor(sensor::Sensor *errors_bitmask_sensor) {
+    errors_bitmask_sensor_ = errors_bitmask_sensor;
+  }
+  void set_operation_mode_bitmask_sensor(sensor::Sensor *operation_mode_bitmask_sensor) {
+    operation_mode_bitmask_sensor_ = operation_mode_bitmask_sensor;
+  }
+  void set_total_voltage_overvoltage_protection_sensor(sensor::Sensor *total_voltage_overvoltage_protection_sensor) {
+    total_voltage_overvoltage_protection_sensor_ = total_voltage_overvoltage_protection_sensor;
+  }
+  void set_total_voltage_undervoltage_protection_sensor(sensor::Sensor *total_voltage_undervoltage_protection_sensor) {
+    total_voltage_undervoltage_protection_sensor_ = total_voltage_undervoltage_protection_sensor;
+  }
+  void set_cell_voltage_overvoltage_protection_sensor(sensor::Sensor *cell_voltage_overvoltage_protection_sensor) {
+    cell_voltage_overvoltage_protection_sensor_ = cell_voltage_overvoltage_protection_sensor;
+  }
+  void set_cell_voltage_overvoltage_recovery_sensor(sensor::Sensor *cell_voltage_overvoltage_recovery_sensor) {
+    cell_voltage_overvoltage_recovery_sensor_ = cell_voltage_overvoltage_recovery_sensor;
+  }
+  void set_cell_voltage_overvoltage_delay_sensor(sensor::Sensor *cell_voltage_overvoltage_delay_sensor) {
+    cell_voltage_overvoltage_delay_sensor_ = cell_voltage_overvoltage_delay_sensor;
+  }
+  void set_cell_voltage_undervoltage_protection_sensor(sensor::Sensor *cell_voltage_undervoltage_protection_sensor) {
+    cell_voltage_undervoltage_protection_sensor_ = cell_voltage_undervoltage_protection_sensor;
+  }
+  void set_cell_voltage_undervoltage_recovery_sensor(sensor::Sensor *cell_voltage_undervoltage_recovery_sensor) {
+    cell_voltage_undervoltage_recovery_sensor_ = cell_voltage_undervoltage_recovery_sensor;
+  }
+  void set_cell_voltage_undervoltage_delay_sensor(sensor::Sensor *cell_voltage_undervoltage_delay_sensor) {
+    cell_voltage_undervoltage_delay_sensor_ = cell_voltage_undervoltage_delay_sensor;
+  }
+  void set_cell_voltage_difference_protection_sensor(sensor::Sensor *cell_voltage_difference_protection_sensor) {
+    cell_voltage_difference_protection_sensor_ = cell_voltage_difference_protection_sensor;
+  }
+  void set_discharging_overcurrent_protection_sensor(sensor::Sensor *discharging_overcurrent_protection_sensor) {
+    discharging_overcurrent_protection_sensor_ = discharging_overcurrent_protection_sensor;
+  }
+  void set_discharging_overcurrent_delay_sensor(sensor::Sensor *discharging_overcurrent_delay_sensor) {
+    discharging_overcurrent_delay_sensor_ = discharging_overcurrent_delay_sensor;
+  }
+  void set_charging_overcurrent_protection_sensor(sensor::Sensor *charging_overcurrent_protection_sensor) {
+    charging_overcurrent_protection_sensor_ = charging_overcurrent_protection_sensor;
+  }
+  void set_charging_overcurrent_delay_sensor(sensor::Sensor *charging_overcurrent_delay_sensor) {
+    charging_overcurrent_delay_sensor_ = charging_overcurrent_delay_sensor;
+  }
+  void set_balancing_start_voltage_sensor(sensor::Sensor *balancing_start_voltage_sensor) {
+    balancing_start_voltage_sensor_ = balancing_start_voltage_sensor;
+  }
+  void set_balancing_delta_voltage_sensor(sensor::Sensor *balancing_delta_voltage_sensor) {
+    balancing_delta_voltage_sensor_ = balancing_delta_voltage_sensor;
+  }
+  void set_mosfet_overtemperature_protection_sensor(sensor::Sensor *mosfet_overtemperature_protection_sensor) {
+    mosfet_overtemperature_protection_sensor_ = mosfet_overtemperature_protection_sensor;
+  }
+  void set_mosfet_overtemperature_recovery_sensor(sensor::Sensor *mosfet_overtemperature_recovery_sensor) {
+    mosfet_overtemperature_recovery_sensor_ = mosfet_overtemperature_recovery_sensor;
+  }
+  void set_battery_overtemperature_protection_sensor(sensor::Sensor *battery_overtemperature_protection_sensor) {
+    battery_overtemperature_protection_sensor_ = battery_overtemperature_protection_sensor;
+  }
+  void set_battery_overtemperature_recovery_sensor(sensor::Sensor *battery_overtemperature_recovery_sensor) {
+    battery_overtemperature_recovery_sensor_ = battery_overtemperature_recovery_sensor;
+  }
+  void set_battery_temperature_difference_protection_sensor(
+      sensor::Sensor *battery_temperature_difference_protection_sensor) {
+    battery_temperature_difference_protection_sensor_ = battery_temperature_difference_protection_sensor;
+  }
+  void set_charging_overtemperature_protection_sensor(sensor::Sensor *charging_overtemperature_protection_sensor) {
+    charging_overtemperature_protection_sensor_ = charging_overtemperature_protection_sensor;
+  }
+  void set_discharging_overtemperature_protection_sensor(
+      sensor::Sensor *discharging_overtemperature_protection_sensor) {
+    discharging_overtemperature_protection_sensor_ = discharging_overtemperature_protection_sensor;
+  }
+  void set_charging_undertemperature_protection_sensor(sensor::Sensor *charging_undertemperature_protection_sensor) {
+    charging_undertemperature_protection_sensor_ = charging_undertemperature_protection_sensor;
+  }
+  void set_charging_undertemperature_recovery_sensor(sensor::Sensor *charging_undertemperature_recovery_sensor) {
+    charging_undertemperature_recovery_sensor_ = charging_undertemperature_recovery_sensor;
+  }
+  void set_discharging_undertemperature_protection_sensor(
+      sensor::Sensor *discharging_undertemperature_protection_sensor) {
+    discharging_undertemperature_protection_sensor_ = discharging_undertemperature_protection_sensor;
+  }
+  void set_discharging_undertemperature_recovery_sensor(sensor::Sensor *discharging_undertemperature_recovery_sensor) {
+    discharging_undertemperature_recovery_sensor_ = discharging_undertemperature_recovery_sensor;
+  }
+  void set_full_charge_capacity_sensor(sensor::Sensor *full_charge_capacity_sensor) {
+    full_charge_capacity_sensor_ = full_charge_capacity_sensor;
+  }
+  void set_current_calibration_sensor(sensor::Sensor *current_calibration_sensor) {
+    current_calibration_sensor_ = current_calibration_sensor;
+  }
+  void set_device_address_sensor(sensor::Sensor *device_address_sensor) {
+    device_address_sensor_ = device_address_sensor;
+  }
+  void set_sleep_wait_time_sensor(sensor::Sensor *sleep_wait_time_sensor) {
+    sleep_wait_time_sensor_ = sleep_wait_time_sensor;
+  }
+  void set_low_soc_alarm_threshold_sensor(sensor::Sensor *low_soc_alarm_threshold_sensor) {
+    low_soc_alarm_threshold_sensor_ = low_soc_alarm_threshold_sensor;
+  }
+  void set_manufacturing_date_sensor(sensor::Sensor *manufacturing_date_sensor) {
+    manufacturing_date_sensor_ = manufacturing_date_sensor;
+  }
+  void set_total_runtime_sensor(sensor::Sensor *total_runtime_sensor) { total_runtime_sensor_ = total_runtime_sensor; }
+  void set_start_current_calibration_sensor(sensor::Sensor *start_current_calibration_sensor) {
+    start_current_calibration_sensor_ = start_current_calibration_sensor;
+  }
+  void set_actual_battery_capacity_sensor(sensor::Sensor *actual_battery_capacity_sensor) {
+    actual_battery_capacity_sensor_ = actual_battery_capacity_sensor;
+  }
+  void set_protocol_version_sensor(sensor::Sensor *protocol_version_sensor) {
+    protocol_version_sensor_ = protocol_version_sensor;
+  }
+
+  void set_charging_switch(switch_::Switch *charging_switch) { charging_switch_ = charging_switch; }
+  void set_discharging_switch(switch_::Switch *discharging_switch) { discharging_switch_ = discharging_switch; }
+  void set_balancer_switch(switch_::Switch *balancer_switch) { balancer_switch_ = balancer_switch; }
+
+  void set_errors_text_sensor(text_sensor::TextSensor *errors_text_sensor) { errors_text_sensor_ = errors_text_sensor; }
+  void set_operation_mode_text_sensor(text_sensor::TextSensor *operation_mode_text_sensor) {
+    operation_mode_text_sensor_ = operation_mode_text_sensor;
+  }
+  void set_battery_type_text_sensor(text_sensor::TextSensor *battery_type_text_sensor) {
+    battery_type_text_sensor_ = battery_type_text_sensor;
+  }
+  void set_password_text_sensor(text_sensor::TextSensor *password_text_sensor) {
+    password_text_sensor_ = password_text_sensor;
+  }
+  void set_device_type_text_sensor(text_sensor::TextSensor *device_type_text_sensor) {
+    device_type_text_sensor_ = device_type_text_sensor;
+  }
+  void set_software_version_text_sensor(text_sensor::TextSensor *software_version_text_sensor) {
+    software_version_text_sensor_ = software_version_text_sensor;
+  }
+  void set_manufacturer_text_sensor(text_sensor::TextSensor *manufacturer_text_sensor) {
+    manufacturer_text_sensor_ = manufacturer_text_sensor;
+  }
+  void set_total_runtime_formatted_text_sensor(text_sensor::TextSensor *total_runtime_formatted_text_sensor) {
+    total_runtime_formatted_text_sensor_ = total_runtime_formatted_text_sensor;
+  }
+
+  void dump_config() override;
+
+  void on_jk_modbus_data(const uint8_t &function, const std::vector<uint8_t> &data) override;
+
+  void update() override;
+
+ protected:
+  binary_sensor::BinarySensor *balancing_binary_sensor_{nullptr};
+  binary_sensor::BinarySensor *balancing_switch_binary_sensor_{nullptr};
+  binary_sensor::BinarySensor *charging_binary_sensor_{nullptr};
+  binary_sensor::BinarySensor *discharging_binary_sensor_{nullptr};
+  binary_sensor::BinarySensor *dedicated_charger_switch_binary_sensor_{nullptr};
+  binary_sensor::BinarySensor *online_status_binary_sensor_{nullptr};
+
+  sensor::Sensor *min_cell_voltage_sensor_{nullptr};
+  sensor::Sensor *max_cell_voltage_sensor_{nullptr};
+  sensor::Sensor *min_voltage_cell_sensor_{nullptr};
+  sensor::Sensor *max_voltage_cell_sensor_{nullptr};
+  sensor::Sensor *delta_cell_voltage_sensor_{nullptr};
+  sensor::Sensor *average_cell_voltage_sensor_{nullptr};
+  sensor::Sensor *mosfet_temperature_sensor_{nullptr};
+  sensor::Sensor *temperature_sensor_1_sensor_{nullptr};
+  sensor::Sensor *temperature_sensor_2_sensor_{nullptr};
+  sensor::Sensor *total_voltage_sensor_{nullptr};
+  sensor::Sensor *current_sensor_{nullptr};
+  sensor::Sensor *power_sensor_{nullptr};
+  sensor::Sensor *charging_power_sensor_{nullptr};
+  sensor::Sensor *discharging_power_sensor_{nullptr};
+  sensor::Sensor *state_of_charge_sensor_{nullptr};
+  sensor::Sensor *capacity_remaining_sensor_{nullptr};
+  sensor::Sensor *temperature_sensor_count_sensor_{nullptr};
+  sensor::Sensor *charging_cycles_sensor_{nullptr};
+  sensor::Sensor *total_charging_cycle_capacity_sensor_{nullptr};
+  sensor::Sensor *cell_count_sensor_{nullptr};
+  sensor::Sensor *errors_bitmask_sensor_{nullptr};
+  sensor::Sensor *operation_mode_bitmask_sensor_{nullptr};
+  sensor::Sensor *total_voltage_overvoltage_protection_sensor_{nullptr};
+  sensor::Sensor *total_voltage_undervoltage_protection_sensor_{nullptr};
+  sensor::Sensor *cell_voltage_overvoltage_protection_sensor_{nullptr};
+  sensor::Sensor *cell_voltage_overvoltage_recovery_sensor_{nullptr};
+  sensor::Sensor *cell_voltage_overvoltage_delay_sensor_{nullptr};
+  sensor::Sensor *cell_voltage_undervoltage_protection_sensor_{nullptr};
+  sensor::Sensor *cell_voltage_undervoltage_recovery_sensor_{nullptr};
+  sensor::Sensor *cell_voltage_undervoltage_delay_sensor_{nullptr};
+  sensor::Sensor *cell_voltage_difference_protection_sensor_{nullptr};
+  sensor::Sensor *discharging_overcurrent_protection_sensor_{nullptr};
+  sensor::Sensor *discharging_overcurrent_delay_sensor_{nullptr};
+  sensor::Sensor *charging_overcurrent_protection_sensor_{nullptr};
+  sensor::Sensor *charging_overcurrent_delay_sensor_{nullptr};
+  sensor::Sensor *balancing_start_voltage_sensor_{nullptr};
+  sensor::Sensor *balancing_delta_voltage_sensor_{nullptr};
+  sensor::Sensor *mosfet_overtemperature_protection_sensor_{nullptr};
+  sensor::Sensor *mosfet_overtemperature_recovery_sensor_{nullptr};
+  sensor::Sensor *battery_overtemperature_protection_sensor_{nullptr};
+  sensor::Sensor *battery_overtemperature_recovery_sensor_{nullptr};
+  sensor::Sensor *battery_temperature_difference_protection_sensor_{nullptr};
+  sensor::Sensor *charging_overtemperature_protection_sensor_{nullptr};
+  sensor::Sensor *discharging_overtemperature_protection_sensor_{nullptr};
+  sensor::Sensor *charging_undertemperature_protection_sensor_{nullptr};
+  sensor::Sensor *charging_undertemperature_recovery_sensor_{nullptr};
+  sensor::Sensor *discharging_undertemperature_protection_sensor_{nullptr};
+  sensor::Sensor *discharging_undertemperature_recovery_sensor_{nullptr};
+  sensor::Sensor *full_charge_capacity_sensor_{nullptr};
+  sensor::Sensor *current_calibration_sensor_{nullptr};
+  sensor::Sensor *device_address_sensor_{nullptr};
+  sensor::Sensor *sleep_wait_time_sensor_{nullptr};
+  sensor::Sensor *low_soc_alarm_threshold_sensor_{nullptr};
+  sensor::Sensor *password_sensor_{nullptr};
+  sensor::Sensor *manufacturing_date_sensor_{nullptr};
+  sensor::Sensor *total_runtime_sensor_{nullptr};
+  sensor::Sensor *start_current_calibration_sensor_{nullptr};
+  sensor::Sensor *actual_battery_capacity_sensor_{nullptr};
+  sensor::Sensor *protocol_version_sensor_{nullptr};
+
+  switch_::Switch *charging_switch_{nullptr};
+  switch_::Switch *discharging_switch_{nullptr};
+  switch_::Switch *balancer_switch_{nullptr};
+
+  text_sensor::TextSensor *errors_text_sensor_{nullptr};
+  text_sensor::TextSensor *operation_mode_text_sensor_{nullptr};
+  text_sensor::TextSensor *battery_type_text_sensor_{nullptr};
+  text_sensor::TextSensor *password_text_sensor_{nullptr};
+  text_sensor::TextSensor *device_type_text_sensor_{nullptr};
+  text_sensor::TextSensor *software_version_text_sensor_{nullptr};
+  text_sensor::TextSensor *manufacturer_text_sensor_{nullptr};
+  text_sensor::TextSensor *total_runtime_formatted_text_sensor_{nullptr};
+
+  struct Cell {
+    sensor::Sensor *cell_voltage_sensor_{nullptr};
+  } cells_[24];
+
+  LookupTable errors_table_;
+
+  uint8_t no_response_count_{0};
+
+  void on_status_data_(const std::vector<uint8_t> &data);
+  void publish_state_(binary_sensor::BinarySensor *binary_sensor, const bool &state);
+  void publish_state_(sensor::Sensor *sensor, float value);
+  void publish_state_(switch_::Switch *obj, const bool &state);
+  void publish_state_(text_sensor::TextSensor *text_sensor, const std::string &state);
+  void publish_device_unavailable_();
+  void reset_online_status_tracker_();
+  void track_online_status_();
+
+  std::string error_bits_to_string_(uint16_t bitmask, const LookupTable &errors, uint8_t bits);
+  std::string mode_bits_to_string_(uint16_t bitmask);
+
+  float get_temperature_(const uint16_t value) {
+    if (value > 99)
+      return (float) (99 - (int16_t) value);
+
+    return (float) value;
+  };
+
+  float get_current_(const uint16_t value, const uint8_t protocol_version) {
+    float current = 0.0f;
+    if (protocol_version == 0x01) {
+      if ((value & 0x8000) == 0x8000) {
+        current = (float) (value & 0x7FFF);
+      } else {
+        current = (float) (value & 0x7FFF) * -1;
+      }
+    }
+
+    return current;
+  };
+
+  std::string format_total_runtime_(const uint32_t value) {
+    int seconds = (int) value;
+    int years = seconds / (24 * 3600 * 365);
+    seconds = seconds % (24 * 3600 * 365);
+    int days = seconds / (24 * 3600);
+    seconds = seconds % (24 * 3600);
+    int hours = seconds / 3600;
+
+    char buf[16];
+    int len = 0;
+    if (years)
+      len += snprintf(buf + len, sizeof(buf) - len, "%dy ", years);
+    if (days)
+      len += snprintf(buf + len, sizeof(buf) - len, "%dd ", days);
+    if (hours)
+      len += snprintf(buf + len, sizeof(buf) - len, "%dh", hours);
+
+    return std::string(buf, len);
+  }
+
+  bool check_bit_(uint16_t mask, uint16_t flag) { return (mask & flag) == flag; }
+};
+
+}  // namespace esphome::jk_bms
